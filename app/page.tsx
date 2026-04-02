@@ -5,7 +5,6 @@ import {
   GRANJAS,
   MEDICAMENTOS_GRANJERO,
   MATERIALES_GRANJERO,
-  formatEur,
   type Producto,
 } from "@/lib/datos-granjero";
 import {
@@ -38,8 +37,8 @@ function downloadExcel(
   rolLabel: string,
   origen: string,
   fecha: string,
-  medItems: { nombre: string; uds: number; precio: number }[],
-  matItems: { nombre: string; uds: number; precio: number }[],
+  medItems: { nombre: string; uds: number }[],
+  matItems: { nombre: string; uds: number }[],
   notas: string
 ) {
   let rows = "";
@@ -51,18 +50,18 @@ function downloadExcel(
 
   if (medItems.length > 0) {
     rows += `<Row><Cell ss:StyleID="header"><Data ss:Type="String">MEDICAMENTOS</Data></Cell></Row>`;
-    rows += `<Row><Cell ss:StyleID="colhead"><Data ss:Type="String">Producto</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Uds.</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Precio/ud.</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Total</Data></Cell></Row>`;
+    rows += `<Row><Cell ss:StyleID="colhead"><Data ss:Type="String">Producto</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Uds.</Data></Cell></Row>`;
     for (const item of medItems) {
-      rows += `<Row><Cell><Data ss:Type="String">${item.nombre}</Data></Cell><Cell><Data ss:Type="Number">${item.uds}</Data></Cell><Cell><Data ss:Type="Number">${item.precio}</Data></Cell><Cell><Data ss:Type="Number">${(item.precio * item.uds).toFixed(2)}</Data></Cell></Row>`;
+      rows += `<Row><Cell><Data ss:Type="String">${item.nombre}</Data></Cell><Cell><Data ss:Type="Number">${item.uds}</Data></Cell></Row>`;
     }
     rows += `<Row></Row>`;
   }
 
   if (matItems.length > 0) {
     rows += `<Row><Cell ss:StyleID="header"><Data ss:Type="String">MATERIAL</Data></Cell></Row>`;
-    rows += `<Row><Cell ss:StyleID="colhead"><Data ss:Type="String">Producto</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Uds.</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Precio/ud.</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Total</Data></Cell></Row>`;
+    rows += `<Row><Cell ss:StyleID="colhead"><Data ss:Type="String">Producto</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Uds.</Data></Cell></Row>`;
     for (const item of matItems) {
-      rows += `<Row><Cell><Data ss:Type="String">${item.nombre}</Data></Cell><Cell><Data ss:Type="Number">${item.uds}</Data></Cell><Cell><Data ss:Type="Number">${item.precio}</Data></Cell><Cell><Data ss:Type="Number">${(item.precio * item.uds).toFixed(2)}</Data></Cell></Row>`;
+      rows += `<Row><Cell><Data ss:Type="String">${item.nombre}</Data></Cell><Cell><Data ss:Type="Number">${item.uds}</Data></Cell></Row>`;
     }
     rows += `<Row></Row>`;
   }
@@ -85,8 +84,6 @@ function downloadExcel(
   <Table ss:DefaultColumnWidth="120">
     <Column ss:Width="280"/>
     <Column ss:Width="80"/>
-    <Column ss:Width="100"/>
-    <Column ss:Width="100"/>
     ${rows}
   </Table>
 </Worksheet>
@@ -161,11 +158,11 @@ export default function PedidosPage() {
 
     const medicamentosConPedido = medList
       .filter((p) => medicamentos[p.nombre] > 0)
-      .map((p) => ({ nombre: p.nombre, unidades: medicamentos[p.nombre], precio: p.precio }));
+      .map((p) => ({ nombre: p.nombre, unidades: medicamentos[p.nombre] }));
 
     const materialesConPedido = matList
       .filter((p) => materiales[p.nombre] > 0)
-      .map((p) => ({ nombre: p.nombre, unidades: materiales[p.nombre], precio: p.precio }));
+      .map((p) => ({ nombre: p.nombre, unidades: materiales[p.nombre] }));
 
     if (medicamentosConPedido.length === 0 && materialesConPedido.length === 0) {
       alert("No has seleccionado ningún producto.");
@@ -216,12 +213,10 @@ export default function PedidosPage() {
     const medItems = medicamentosConPedido.map((p) => ({
       nombre: p.nombre,
       uds: medicamentos[p.nombre],
-      precio: p.precio,
     }));
     const matItems = materialesConPedido.map((p) => ({
       nombre: p.nombre,
       uds: materiales[p.nombre],
-      precio: p.precio,
     }));
     downloadExcel(rolLabel, origen, fechaEnvio, medItems, matItems, notas);
   }
@@ -412,7 +407,6 @@ export default function PedidosPage() {
                 <div key={p.nombre} style={styles.productRow}>
                   <div style={styles.productInfo}>
                     <span style={styles.productLabel}>{p.nombre}</span>
-                    <span style={styles.productPrice}>{formatEur(p.precio)}</span>
                   </div>
                   <select
                     value={medicamentos[p.nombre] ?? 0}
@@ -448,9 +442,6 @@ export default function PedidosPage() {
                 <div key={p.nombre} style={styles.productRow}>
                   <div style={styles.productInfo}>
                     <span style={styles.productLabel}>{p.nombre}</span>
-                    {p.precio > 0 && (
-                      <span style={styles.productPrice}>{formatEur(p.precio)}</span>
-                    )}
                   </div>
                   <select
                     value={materiales[p.nombre] ?? 0}
@@ -526,32 +517,16 @@ function SummaryTable({
           <tr>
             <th style={styles.th}>Producto</th>
             <th style={{ ...styles.th, textAlign: "center", width: 80 }}>Uds.</th>
-            <th style={{ ...styles.th, textAlign: "right", width: 100 }}>Precio/ud.</th>
-            <th style={{ ...styles.th, textAlign: "right", width: 100 }}>Total</th>
           </tr>
         </thead>
         <tbody>
           {productos.map((p) => {
             const uds = pedido[p.nombre];
-            const total = p.precio * uds;
             return (
               <tr key={p.nombre}>
                 <td style={styles.td}>{p.nombre}</td>
                 <td style={{ ...styles.td, textAlign: "center", fontWeight: 600 }}>
                   {uds}
-                </td>
-                <td style={{ ...styles.td, textAlign: "right", color: "#666" }}>
-                  {p.precio > 0 ? formatEur(p.precio) : "—"}
-                </td>
-                <td
-                  style={{
-                    ...styles.td,
-                    textAlign: "right",
-                    fontWeight: 600,
-                    color: "#1d4ed8",
-                  }}
-                >
-                  {p.precio > 0 ? formatEur(total) : "—"}
                 </td>
               </tr>
             );

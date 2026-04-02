@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
-import { formatEur } from "@/lib/datos-granjero";
 
 function getResend() {
   const key = process.env.RESEND_API_KEY;
@@ -8,7 +7,7 @@ function getResend() {
   return new Resend(key);
 }
 
-type LineaPedido = { nombre: string; unidades: number; precio: number };
+type LineaPedido = { nombre: string; unidades: number };
 
 interface EmailPayload {
   rol: "granjero" | "visitador";
@@ -27,13 +26,9 @@ function tableHtml(titulo: string, items: LineaPedido[]): string {
       <tr>
         <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;">${r.nombre}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;text-align:center;font-weight:600;">${r.unidades}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;text-align:right;color:#555;">${r.precio > 0 ? formatEur(r.precio) : "—"}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;font-size:13px;text-align:right;font-weight:600;color:#1d4ed8;">${r.precio > 0 ? formatEur(r.precio * r.unidades) : "—"}</td>
       </tr>`
     )
     .join("");
-
-  const subtotal = items.reduce((acc, r) => acc + r.precio * r.unidades, 0);
 
   return `
     <h3 style="margin:24px 0 8px;font-size:15px;color:#1a1a2e;border-bottom:2px solid #e2e8f0;padding-bottom:6px;">${titulo}</h3>
@@ -42,17 +37,9 @@ function tableHtml(titulo: string, items: LineaPedido[]): string {
         <tr style="background:#f8fafc;">
           <th style="padding:8px 12px;text-align:left;font-size:12px;color:#6b7280;font-weight:600;border-bottom:2px solid #e2e8f0;">PRODUCTO</th>
           <th style="padding:8px 12px;text-align:center;font-size:12px;color:#6b7280;font-weight:600;border-bottom:2px solid #e2e8f0;">UDS.</th>
-          <th style="padding:8px 12px;text-align:right;font-size:12px;color:#6b7280;font-weight:600;border-bottom:2px solid #e2e8f0;">PRECIO/UD.</th>
-          <th style="padding:8px 12px;text-align:right;font-size:12px;color:#6b7280;font-weight:600;border-bottom:2px solid #e2e8f0;">TOTAL</th>
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
-      <tfoot>
-        <tr style="background:#f1f5f9;">
-          <td colspan="3" style="padding:10px 12px;font-size:13px;font-weight:700;color:#1a1a2e;">Subtotal ${titulo}</td>
-          <td style="padding:10px 12px;font-size:14px;font-weight:700;color:#1d4ed8;text-align:right;">${formatEur(subtotal)}</td>
-        </tr>
-      </tfoot>
     </table>`;
 }
 
@@ -71,10 +58,6 @@ function buildEmailHtml(payload: EmailPayload): string {
   const fecha = formatFechaServer();
   const medTable = tableHtml("Medicamentos", payload.medicamentos);
   const matTable = tableHtml("Material", payload.materiales);
-
-  const totalGeneral =
-    payload.medicamentos.reduce((a, r) => a + r.precio * r.unidades, 0) +
-    payload.materiales.reduce((a, r) => a + r.precio * r.unidades, 0);
 
   const notasHtml = payload.notas
     ? `<div style="margin:16px 32px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:13px;color:#92400e;">
@@ -117,20 +100,10 @@ function buildEmailHtml(payload: EmailPayload): string {
 
     ${notasHtml}
 
-    <!-- Total general -->
-    <div style="margin:0 32px 32px;background:#1d4ed8;border-radius:8px;padding:16px 20px;">
-      <table width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-          <td style="font-size:15px;font-weight:700;color:#fff;">TOTAL PEDIDO</td>
-          <td style="font-size:22px;font-weight:700;color:#fff;text-align:right;">${formatEur(totalGeneral)}</td>
-        </tr>
-      </table>
-    </div>
-
     <!-- Footer -->
     <div style="padding:16px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;">
       <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center;">
-        Generado automáticamente · Pedidos Farmacia
+        Generado automaticamente · Pedidos Farmacia
       </p>
     </div>
   </div>
