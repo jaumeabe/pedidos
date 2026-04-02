@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/jaumejr/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/c940f0b0-e558-49a3-93b2-0afa53d00354/076b6a4b-4811-4fd9-a318-0db0ee331316/skills/xlsx/**)",
+      "Bash(python -c \":*)",
+      "Bash(python -c \"import pandas as pd; sheets = pd.read_excel\\(''C:/Users/jaumejr/Documents/GitHub/Pedidos/LISTADO MEDICAMENTOS VISITADORES .ods'', sheet_name=None, engine=''odf''\\); [print\\(f''=== Sheet: {name} ===\\\\n{df.to_string\\(\\)}\\\\n''\\) for name, df in sheets.items\\(\\)]\")",
+      "Bash(python -c \"import pandas as pd; sheets = pd.read_excel\\(r''C:/Users/jaumejr/Documents/GitHub/Pedidos/LISTADO MEDICAMENTOS VISITADORES .ods'', sheet_name=None, engine=''odf''\\); [print\\(f''Sheet: {name}''\\) or print\\(df.to_string\\(\\)\\) or print\\(\\) for name, df in sheets.items\\(\\)]\")",
+      "Bash(python3 -c \"import pandas as pd; sheets = pd.read_excel\\(r''C:/Users/jaumejr/Documents/GitHub/Pedidos/LISTADO MEDICAMENTOS VISITADORES .ods'', sheet_name=None, engine=''odf''\\); [print\\(f''Sheet: {name}'', df.to_string\\(\\), sep=chr\\(10\\)\\) for name, df in sheets.items\\(\\)]\")",
+      "Bash(npm install:*)"
+    ]
+  }
+}
