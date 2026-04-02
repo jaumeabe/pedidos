@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   GRANJAS,
   MEDICAMENTOS_GRANJERO,
+  ROPA_GRANJERO,
   MATERIALES_GRANJERO,
   type Producto,
 } from "@/lib/datos-granjero";
@@ -38,6 +39,7 @@ function downloadExcel(
   origen: string,
   fecha: string,
   medItems: { nombre: string; uds: number }[],
+  ropaItems: { nombre: string; uds: number }[],
   matItems: { nombre: string; uds: number }[],
   notas: string
 ) {
@@ -52,6 +54,15 @@ function downloadExcel(
     rows += `<Row><Cell ss:StyleID="header"><Data ss:Type="String">MEDICAMENTOS</Data></Cell></Row>`;
     rows += `<Row><Cell ss:StyleID="colhead"><Data ss:Type="String">Producto</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Uds.</Data></Cell></Row>`;
     for (const item of medItems) {
+      rows += `<Row><Cell><Data ss:Type="String">${item.nombre}</Data></Cell><Cell><Data ss:Type="Number">${item.uds}</Data></Cell></Row>`;
+    }
+    rows += `<Row></Row>`;
+  }
+
+  if (ropaItems.length > 0) {
+    rows += `<Row><Cell ss:StyleID="header"><Data ss:Type="String">ROPA</Data></Cell></Row>`;
+    rows += `<Row><Cell ss:StyleID="colhead"><Data ss:Type="String">Producto</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Uds.</Data></Cell></Row>`;
+    for (const item of ropaItems) {
       rows += `<Row><Cell><Data ss:Type="String">${item.nombre}</Data></Cell><Cell><Data ss:Type="Number">${item.uds}</Data></Cell></Row>`;
     }
     rows += `<Row></Row>`;
@@ -111,11 +122,13 @@ export default function PedidosPage() {
   const [notas, setNotas] = useState("");
   const [fechaEnvio, setFechaEnvio] = useState("");
   const [medicamentos, setMedicamentos] = useState<Pedido>({});
+  const [ropa, setRopa] = useState<Pedido>({});
   const [materiales, setMateriales] = useState<Pedido>({});
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [emailError, setEmailError] = useState("");
 
   const medList = rol === "granjero" ? MEDICAMENTOS_GRANJERO : MEDICAMENTOS_VISITADOR;
+  const ropaList = ROPA_GRANJERO;
   const matList = rol === "granjero" ? MATERIALES_GRANJERO : MATERIALES_VISITADOR;
 
   function handleRolChange(newRol: Rol) {
@@ -125,15 +138,21 @@ export default function PedidosPage() {
     setNotas("");
     if (newRol === "granjero") {
       setMedicamentos(buildInitialPedido(MEDICAMENTOS_GRANJERO));
+      setRopa(buildInitialPedido(ROPA_GRANJERO));
       setMateriales(buildInitialPedido(MATERIALES_GRANJERO));
     } else if (newRol === "visitador") {
       setMedicamentos(buildInitialPedido(MEDICAMENTOS_VISITADOR));
+      setRopa({});
       setMateriales(buildInitialPedido(MATERIALES_VISITADOR));
     }
   }
 
   function handleMedicamento(nombre: string, cantidad: number) {
     setMedicamentos((prev) => ({ ...prev, [nombre]: cantidad }));
+  }
+
+  function handleRopa(nombre: string, cantidad: number) {
+    setRopa((prev) => ({ ...prev, [nombre]: cantidad }));
   }
 
   function handleMaterial(nombre: string, cantidad: number) {
@@ -160,11 +179,15 @@ export default function PedidosPage() {
       .filter((p) => medicamentos[p.nombre] > 0)
       .map((p) => ({ nombre: p.nombre, unidades: medicamentos[p.nombre] }));
 
+    const ropaConPedido = ropaList
+      .filter((p) => ropa[p.nombre] > 0)
+      .map((p) => ({ nombre: p.nombre, unidades: ropa[p.nombre] }));
+
     const materialesConPedido = matList
       .filter((p) => materiales[p.nombre] > 0)
       .map((p) => ({ nombre: p.nombre, unidades: materiales[p.nombre] }));
 
-    if (medicamentosConPedido.length === 0 && materialesConPedido.length === 0) {
+    if (medicamentosConPedido.length === 0 && ropaConPedido.length === 0 && materialesConPedido.length === 0) {
       alert("No has seleccionado ningún producto.");
       setStatus("idle");
       return;
@@ -178,6 +201,7 @@ export default function PedidosPage() {
           rol,
           origen: rol === "granjero" ? granja : visitador,
           medicamentos: medicamentosConPedido,
+          ropa: ropaConPedido,
           materiales: materialesConPedido,
           notas,
         }),
@@ -202,6 +226,7 @@ export default function PedidosPage() {
     setNotas("");
     setFechaEnvio("");
     setMedicamentos({});
+    setRopa({});
     setMateriales({});
     setStatus("idle");
     setEmailError("");
@@ -214,14 +239,19 @@ export default function PedidosPage() {
       nombre: p.nombre,
       uds: medicamentos[p.nombre],
     }));
+    const ropaItems = ropaConPedido.map((p) => ({
+      nombre: p.nombre,
+      uds: ropa[p.nombre],
+    }));
     const matItems = materialesConPedido.map((p) => ({
       nombre: p.nombre,
       uds: materiales[p.nombre],
     }));
-    downloadExcel(rolLabel, origen, fechaEnvio, medItems, matItems, notas);
+    downloadExcel(rolLabel, origen, fechaEnvio, medItems, ropaItems, matItems, notas);
   }
 
   const medicamentosConPedido = medList.filter((p) => medicamentos[p.nombre] > 0);
+  const ropaConPedido = ropaList.filter((p) => ropa[p.nombre] > 0);
   const materialesConPedido = matList.filter((p) => materiales[p.nombre] > 0);
 
   // ─── SUCCESS SCREEN ──────────────────────────────────────────────────
@@ -255,6 +285,14 @@ export default function PedidosPage() {
               titulo="Medicamentos"
               productos={medicamentosConPedido}
               pedido={medicamentos}
+            />
+          )}
+
+          {ropaConPedido.length > 0 && (
+            <SummaryTable
+              titulo="Ropa"
+              productos={ropaConPedido}
+              pedido={ropa}
             />
           )}
 
@@ -430,6 +468,43 @@ export default function PedidosPage() {
               ))}
             </div>
           </div>
+
+          {/* Ropa (solo granjero) */}
+          {rol === "granjero" && (
+          <div className="form-card" style={styles.card}>
+            <h2 style={styles.cardTitle}>Ropa</h2>
+            <p style={styles.cardHint}>
+              Selecciona las unidades que quieres pedir (0 = no pedir)
+            </p>
+            <div className="product-grid" style={styles.grid}>
+              {ropaList.map((p) => (
+                <div key={p.nombre} style={styles.productRow}>
+                  <div style={styles.productInfo}>
+                    <span style={styles.productLabel}>{p.nombre}</span>
+                  </div>
+                  <select
+                    value={ropa[p.nombre] ?? 0}
+                    onChange={(e) =>
+                      handleRopa(p.nombre, Number(e.target.value))
+                    }
+                    style={{
+                      ...styles.select,
+                      ...((ropa[p.nombre] ?? 0) > 0
+                        ? styles.selectActive
+                        : {}),
+                    }}
+                  >
+                    {CANTIDAD_OPTIONS.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          </div>
+          )}
 
           {/* Material */}
           <div className="form-card" style={styles.card}>

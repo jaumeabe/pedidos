@@ -13,6 +13,7 @@ interface EmailPayload {
   rol: "granjero" | "visitador";
   origen: string;
   medicamentos: LineaPedido[];
+  ropa?: LineaPedido[];
   materiales: LineaPedido[];
   notas?: string;
 }
@@ -57,6 +58,7 @@ function buildEmailHtml(payload: EmailPayload): string {
   const rolLabel = payload.rol === "granjero" ? "Granja" : "Visitador";
   const fecha = formatFechaServer();
   const medTable = tableHtml("Medicamentos", payload.medicamentos);
+  const ropaTable = tableHtml("Ropa", payload.ropa ?? []);
   const matTable = tableHtml("Material", payload.materiales);
 
   const notasHtml = payload.notas
@@ -95,6 +97,7 @@ function buildEmailHtml(payload: EmailPayload): string {
     <!-- Tablas -->
     <div style="padding:8px 32px 24px;">
       ${medTable}
+      ${ropaTable}
       ${matTable}
     </div>
 
