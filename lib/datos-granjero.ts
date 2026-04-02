@@ -34,6 +34,10 @@ export const GRANJAS = [
   "Cartuja 1",
   "Pordecona",
   "Sisallar 4",
+  "Destete Zaidin",
+  "Destete Jaumandreu",
+  "Destete Maials",
+  "Destete Borges 1",
 ];
 
 export const MEDICAMENTOS_GRANJERO: Producto[] = [
