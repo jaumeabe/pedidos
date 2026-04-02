@@ -230,7 +230,7 @@ export default function PedidosPage() {
     const rolLabel = rol === "granjero" ? "Granja" : "Visitador";
     return (
       <div style={styles.page}>
-        <div style={styles.successCard}>
+        <div className="success-card" style={styles.successCard}>
           <div style={styles.successIcon}>✓</div>
           <h1 style={styles.successTitle}>Pedido Enviado</h1>
           <p style={styles.successSubtitle}>
@@ -272,14 +272,14 @@ export default function PedidosPage() {
             </div>
           )}
 
-          <div style={styles.buttonRow}>
-            <button onClick={handleExcel} style={styles.excelBtn}>
+          <div className="button-row" style={styles.buttonRow}>
+            <button onClick={handleExcel} className="action-btn" style={styles.excelBtn}>
               Descargar Excel
             </button>
-            <button onClick={() => window.print()} style={styles.printBtn}>
+            <button onClick={() => window.print()} className="action-btn" style={styles.printBtn}>
               Imprimir / Guardar PDF
             </button>
-            <button onClick={handleReset} style={styles.resetBtn}>
+            <button onClick={handleReset} className="action-btn" style={styles.resetBtn}>
               Nuevo pedido
             </button>
           </div>
@@ -297,7 +297,7 @@ export default function PedidosPage() {
             <h1 style={styles.title}>Pedidos de Farmacia</h1>
             <p style={styles.subtitle}>Selecciona tu perfil para hacer un pedido</p>
           </header>
-          <div style={styles.roleGrid}>
+          <div className="role-grid" style={styles.roleGrid}>
             <button
               onClick={() => handleRolChange("granjero")}
               style={styles.roleCard}
@@ -356,7 +356,7 @@ export default function PedidosPage() {
 
         <form onSubmit={handleSubmit}>
           {/* Selector */}
-          <div style={styles.card}>
+          <div className="form-card" style={styles.card}>
             <h2 style={styles.cardTitle}>
               {rol === "granjero" ? "Datos de la Granja" : "Datos del Visitador"}
             </h2>
@@ -397,12 +397,12 @@ export default function PedidosPage() {
           </div>
 
           {/* Medicamentos */}
-          <div style={styles.card}>
+          <div className="form-card" style={styles.card}>
             <h2 style={styles.cardTitle}>Medicamentos</h2>
             <p style={styles.cardHint}>
               Selecciona las unidades que quieres pedir (0 = no pedir)
             </p>
-            <div style={styles.grid}>
+            <div className="product-grid" style={styles.grid}>
               {medList.map((p) => (
                 <div key={p.nombre} style={styles.productRow}>
                   <div style={styles.productInfo}>
@@ -432,12 +432,12 @@ export default function PedidosPage() {
           </div>
 
           {/* Material */}
-          <div style={styles.card}>
+          <div className="form-card" style={styles.card}>
             <h2 style={styles.cardTitle}>Material</h2>
             <p style={styles.cardHint}>
               Selecciona las unidades que quieres pedir (0 = no pedir)
             </p>
-            <div style={styles.grid}>
+            <div className="product-grid" style={styles.grid}>
               {matList.map((p) => (
                 <div key={p.nombre} style={styles.productRow}>
                   <div style={styles.productInfo}>
@@ -467,7 +467,7 @@ export default function PedidosPage() {
           </div>
 
           {/* Notas */}
-          <div style={styles.card}>
+          <div className="form-card" style={styles.card}>
             <h2 style={styles.cardTitle}>Notas adicionales</h2>
             <textarea
               value={notas}
@@ -576,7 +576,7 @@ const styles: Record<string, React.CSSProperties> = {
   // Role selection
   roleGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(260px, 100%), 1fr))",
     gap: 24,
     maxWidth: 600,
     margin: "0 auto",
@@ -660,7 +660,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fill, minmax(min(340px, 100%), 1fr))",
     gap: 10,
   },
   productRow: {
