@@ -6,7 +6,16 @@
       "Bash(python -c \"import pandas as pd; sheets = pd.read_excel\\(''C:/Users/jaumejr/Documents/GitHub/Pedidos/LISTADO MEDICAMENTOS VISITADORES .ods'', sheet_name=None, engine=''odf''\\); [print\\(f''=== Sheet: {name} ===\\\\n{df.to_string\\(\\)}\\\\n''\\) for name, df in sheets.items\\(\\)]\")",
       "Bash(python -c \"import pandas as pd; sheets = pd.read_excel\\(r''C:/Users/jaumejr/Documents/GitHub/Pedidos/LISTADO MEDICAMENTOS VISITADORES .ods'', sheet_name=None, engine=''odf''\\); [print\\(f''Sheet: {name}''\\) or print\\(df.to_string\\(\\)\\) or print\\(\\) for name, df in sheets.items\\(\\)]\")",
       "Bash(python3 -c \"import pandas as pd; sheets = pd.read_excel\\(r''C:/Users/jaumejr/Documents/GitHub/Pedidos/LISTADO MEDICAMENTOS VISITADORES .ods'', sheet_name=None, engine=''odf''\\); [print\\(f''Sheet: {name}'', df.to_string\\(\\), sep=chr\\(10\\)\\) for name, df in sheets.items\\(\\)]\")",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(python -c \"import pandas as pd; sheets = pd.read_excel\\(r''C:\\\\Users\\\\jaumejr\\\\Documents\\\\GitHub\\\\Pedidos\\\\LISTADO MEDICAMENTOS MATERIAL.xls'', sheet_name=None\\); [print\\(f''=== Sheet: {name} ===''\\) or print\\(df.to_string\\(\\)\\) or print\\(\\) for name, df in sheets.items\\(\\)]\")",
+      "Bash(SHELL=/usr/bin/bash python -c \"import pandas as pd; sheets = pd.read_excel\\(r''C:/Users/jaumejr/Documents/GitHub/Pedidos/LISTADO MEDICAMENTOS MATERIAL.xls'', sheet_name=None\\); [print\\(f''=== Sheet: {name} ===''\\) or print\\(df.to_string\\(\\)\\) or print\\(\\) for name, df in sheets.items\\(\\)]\")",
+      "Bash(python \"C:/Users/jaumejr/Documents/GitHub/Pedidos/read_excel.py\")",
+      "Bash(C:/Users/jaumejr/AppData/Local/Programs/Python/Python312/python.exe \"C:/Users/jaumejr/Documents/GitHub/Pedidos/read_excel.py\")",
+      "Bash(python C:/Users/jaumejr/Documents/GitHub/Pedidos/read_xls.py)",
+      "Bash(python -c \"import pandas as pd; sheets = pd.read_excel\\(''C:/Users/jaumejr/Documents/GitHub/Pedidos/LISTADO MEDICAMENTOS MATERIAL.xls'', sheet_name=None, header=None\\); [print\\(f''SHEET: {name}, rows={len\\(df\\)}, cols={len\\(df.columns\\)}''\\) for name, df in sheets.items\\(\\)]\")",
+      "Bash(python3 -c \"print\\(''hello''\\)\")",
+      "Bash(python \"C:/Users/jaumejr/Documents/GitHub/Pedidos/extract_data.py\")"
     ]
   }
 }

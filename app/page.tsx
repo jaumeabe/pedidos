@@ -5,7 +5,9 @@ import {
   GRANJAS,
   MEDICAMENTOS_GRANJERO,
   MATERIALES_GRANJERO,
+  ROPA_GRANJERO,
   type Producto,
+  type RopaItem,
 } from "@/lib/datos-granjero";
 import {
   VISITADORES,
@@ -21,6 +23,20 @@ type SubmitStatus = "idle" | "loading" | "success" | "error";
 
 function buildInitialPedido(items: Producto[]): Pedido {
   return Object.fromEntries(items.map((p) => [p.nombre, 0]));
+}
+
+function buildInitialRopa(): Pedido {
+  const entries: [string, number][] = [];
+  for (const item of ROPA_GRANJERO) {
+    if (item.tallas) {
+      for (const t of item.tallas) {
+        entries.push([`${item.nombre} ${t}`, 0]);
+      }
+    } else {
+      entries.push([item.nombre, 0]);
+    }
+  }
+  return Object.fromEntries(entries);
 }
 
 function formatFecha(): string {
@@ -39,6 +55,7 @@ function downloadExcel(
   fecha: string,
   medItems: { nombre: string; uds: number }[],
   matItems: { nombre: string; uds: number }[],
+  ropaItems: { nombre: string; uds: number }[],
   notas: string
 ) {
   let rows = "";
@@ -61,6 +78,15 @@ function downloadExcel(
     rows += `<Row><Cell ss:StyleID="header"><Data ss:Type="String">MATERIAL</Data></Cell></Row>`;
     rows += `<Row><Cell ss:StyleID="colhead"><Data ss:Type="String">Producto</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Uds.</Data></Cell></Row>`;
     for (const item of matItems) {
+      rows += `<Row><Cell><Data ss:Type="String">${item.nombre}</Data></Cell><Cell><Data ss:Type="Number">${item.uds}</Data></Cell></Row>`;
+    }
+    rows += `<Row></Row>`;
+  }
+
+  if (ropaItems.length > 0) {
+    rows += `<Row><Cell ss:StyleID="header"><Data ss:Type="String">ROPA</Data></Cell></Row>`;
+    rows += `<Row><Cell ss:StyleID="colhead"><Data ss:Type="String">Producto</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Uds.</Data></Cell></Row>`;
+    for (const item of ropaItems) {
       rows += `<Row><Cell><Data ss:Type="String">${item.nombre}</Data></Cell><Cell><Data ss:Type="Number">${item.uds}</Data></Cell></Row>`;
     }
     rows += `<Row></Row>`;
@@ -112,6 +138,7 @@ export default function PedidosPage() {
   const [fechaEnvio, setFechaEnvio] = useState("");
   const [medicamentos, setMedicamentos] = useState<Pedido>({});
   const [materiales, setMateriales] = useState<Pedido>({});
+  const [ropa, setRopa] = useState<Pedido>({});
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [emailError, setEmailError] = useState("");
 
@@ -126,9 +153,11 @@ export default function PedidosPage() {
     if (newRol === "granjero") {
       setMedicamentos(buildInitialPedido(MEDICAMENTOS_GRANJERO));
       setMateriales(buildInitialPedido(MATERIALES_GRANJERO));
+      setRopa(buildInitialRopa());
     } else if (newRol === "visitador") {
       setMedicamentos(buildInitialPedido(MEDICAMENTOS_VISITADOR));
       setMateriales(buildInitialPedido(MATERIALES_VISITADOR));
+      setRopa({});
     }
   }
 
@@ -138,6 +167,10 @@ export default function PedidosPage() {
 
   function handleMaterial(nombre: string, cantidad: number) {
     setMateriales((prev) => ({ ...prev, [nombre]: cantidad }));
+  }
+
+  function handleRopa(nombre: string, cantidad: number) {
+    setRopa((prev) => ({ ...prev, [nombre]: cantidad }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -164,7 +197,25 @@ export default function PedidosPage() {
       .filter((p) => materiales[p.nombre] > 0)
       .map((p) => ({ nombre: p.nombre, unidades: materiales[p.nombre] }));
 
-    if (medicamentosConPedido.length === 0 && materialesConPedido.length === 0) {
+    const ropaConPedido: { nombre: string; unidades: number }[] = [];
+    if (rol === "granjero") {
+      for (const item of ROPA_GRANJERO) {
+        if (item.tallas) {
+          for (const t of item.tallas) {
+            const key = `${item.nombre} ${t}`;
+            if (ropa[key] > 0) ropaConPedido.push({ nombre: key, unidades: ropa[key] });
+          }
+        } else {
+          if (ropa[item.nombre] > 0) ropaConPedido.push({ nombre: item.nombre, unidades: ropa[item.nombre] });
+        }
+      }
+    }
+
+    if (
+      medicamentosConPedido.length === 0 &&
+      materialesConPedido.length === 0 &&
+      ropaConPedido.length === 0
+    ) {
       alert("No has seleccionado ningún producto.");
       setStatus("idle");
       return;
@@ -179,6 +230,7 @@ export default function PedidosPage() {
           origen: rol === "granjero" ? granja : visitador,
           medicamentos: medicamentosConPedido,
           materiales: materialesConPedido,
+          ropa: ropaConPedido,
           notas,
         }),
       });
@@ -203,8 +255,25 @@ export default function PedidosPage() {
     setFechaEnvio("");
     setMedicamentos({});
     setMateriales({});
+    setRopa({});
     setStatus("idle");
     setEmailError("");
+  }
+
+  const medicamentosConPedido = medList.filter((p) => medicamentos[p.nombre] > 0);
+  const materialesConPedido = matList.filter((p) => materiales[p.nombre] > 0);
+  const ropaConPedidoDisplay: Producto[] = [];
+  if (rol === "granjero") {
+    for (const item of ROPA_GRANJERO) {
+      if (item.tallas) {
+        for (const t of item.tallas) {
+          const key = `${item.nombre} ${t}`;
+          if (ropa[key] > 0) ropaConPedidoDisplay.push({ nombre: key });
+        }
+      } else {
+        if (ropa[item.nombre] > 0) ropaConPedidoDisplay.push({ nombre: item.nombre });
+      }
+    }
   }
 
   function handleExcel() {
@@ -218,11 +287,12 @@ export default function PedidosPage() {
       nombre: p.nombre,
       uds: materiales[p.nombre],
     }));
-    downloadExcel(rolLabel, origen, fechaEnvio, medItems, matItems, notas);
+    const ropaItems = ropaConPedidoDisplay.map((p) => ({
+      nombre: p.nombre,
+      uds: ropa[p.nombre],
+    }));
+    downloadExcel(rolLabel, origen, fechaEnvio, medItems, matItems, ropaItems, notas);
   }
-
-  const medicamentosConPedido = medList.filter((p) => medicamentos[p.nombre] > 0);
-  const materialesConPedido = matList.filter((p) => materiales[p.nombre] > 0);
 
   // ─── SUCCESS SCREEN ──────────────────────────────────────────────────
   if (status === "success") {
@@ -236,34 +306,26 @@ export default function PedidosPage() {
           <p style={styles.successSubtitle}>
             <strong>{rolLabel}:</strong> {origen}
           </p>
-          <p style={styles.successDate}>
-            Fecha: {fechaEnvio}
-          </p>
+          <p style={styles.successDate}>Fecha: {fechaEnvio}</p>
 
           {emailError ? (
             <div style={styles.emailError}>
-              ⚠️ Hubo un error al enviar el email: {emailError}
+              Hubo un error al enviar el email: {emailError}
             </div>
           ) : (
             <div style={styles.emailOk}>
-              ✉️ Se ha enviado el pedido por email a farmacia correctamente.
+              Se ha enviado el pedido por email a farmacia correctamente.
             </div>
           )}
 
           {medicamentosConPedido.length > 0 && (
-            <SummaryTable
-              titulo="Medicamentos"
-              productos={medicamentosConPedido}
-              pedido={medicamentos}
-            />
+            <SummaryTable titulo="Medicamentos" productos={medicamentosConPedido} pedido={medicamentos} />
           )}
-
           {materialesConPedido.length > 0 && (
-            <SummaryTable
-              titulo="Material"
-              productos={materialesConPedido}
-              pedido={materiales}
-            />
+            <SummaryTable titulo="Material" productos={materialesConPedido} pedido={materiales} />
+          )}
+          {ropaConPedidoDisplay.length > 0 && (
+            <SummaryTable titulo="Ropa" productos={ropaConPedidoDisplay} pedido={ropa} />
           )}
 
           {notas && (
@@ -312,9 +374,7 @@ export default function PedidosPage() {
             >
               <div style={styles.roleIcon}>🐷</div>
               <h2 style={styles.roleTitle}>Granjero</h2>
-              <p style={styles.roleDesc}>
-                Pedido de medicamentos y materiales para tu granja
-              </p>
+              <p style={styles.roleDesc}>Pedido de medicamentos, materiales y ropa para tu granja</p>
             </button>
             <button
               onClick={() => handleRolChange("visitador")}
@@ -330,9 +390,7 @@ export default function PedidosPage() {
             >
               <div style={styles.roleIcon}>👨‍⚕️</div>
               <h2 style={styles.roleTitle}>Visitador</h2>
-              <p style={styles.roleDesc}>
-                Pedido de medicamentos y materiales para visitas
-              </p>
+              <p style={styles.roleDesc}>Pedido de medicamentos y materiales para visitas</p>
             </button>
           </div>
         </div>
@@ -365,31 +423,17 @@ export default function PedidosPage() {
                 {rol === "granjero" ? "Nombre de la granja *" : "Tu nombre *"}
               </label>
               {rol === "granjero" ? (
-                <select
-                  value={granja}
-                  onChange={(e) => setGranja(e.target.value)}
-                  style={styles.input}
-                  required
-                >
+                <select value={granja} onChange={(e) => setGranja(e.target.value)} style={styles.input} required>
                   <option value="">— Selecciona una granja —</option>
                   {GRANJAS.map((g) => (
-                    <option key={g} value={g}>
-                      {g}
-                    </option>
+                    <option key={g} value={g}>{g}</option>
                   ))}
                 </select>
               ) : (
-                <select
-                  value={visitador}
-                  onChange={(e) => setVisitador(e.target.value)}
-                  style={styles.input}
-                  required
-                >
+                <select value={visitador} onChange={(e) => setVisitador(e.target.value)} style={styles.input} required>
                   <option value="">— Selecciona tu nombre —</option>
                   {VISITADORES.map((v) => (
-                    <option key={v} value={v}>
-                      {v}
-                    </option>
+                    <option key={v} value={v}>{v}</option>
                   ))}
                 </select>
               )}
@@ -397,74 +441,61 @@ export default function PedidosPage() {
           </div>
 
           {/* Medicamentos */}
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Medicamentos</h2>
-            <p style={styles.cardHint}>
-              Selecciona las unidades que quieres pedir (0 = no pedir)
-            </p>
-            <div style={styles.grid}>
-              {medList.map((p) => (
-                <div key={p.nombre} style={styles.productRow}>
-                  <div style={styles.productInfo}>
-                    <span style={styles.productLabel}>{p.nombre}</span>
-                  </div>
-                  <select
-                    value={medicamentos[p.nombre] ?? 0}
-                    onChange={(e) =>
-                      handleMedicamento(p.nombre, Number(e.target.value))
-                    }
-                    style={{
-                      ...styles.select,
-                      ...((medicamentos[p.nombre] ?? 0) > 0
-                        ? styles.selectActive
-                        : {}),
-                    }}
-                  >
-                    {CANTIDAD_OPTIONS.map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
-          </div>
+          <ProductSection
+            titulo="Medicamentos"
+            hint="Selecciona las unidades que quieres pedir (0 = no pedir)"
+            items={medList}
+            pedido={medicamentos}
+            onChange={handleMedicamento}
+          />
 
           {/* Material */}
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Material</h2>
-            <p style={styles.cardHint}>
-              Selecciona las unidades que quieres pedir (0 = no pedir)
-            </p>
-            <div style={styles.grid}>
-              {matList.map((p) => (
-                <div key={p.nombre} style={styles.productRow}>
-                  <div style={styles.productInfo}>
-                    <span style={styles.productLabel}>{p.nombre}</span>
-                  </div>
-                  <select
-                    value={materiales[p.nombre] ?? 0}
-                    onChange={(e) =>
-                      handleMaterial(p.nombre, Number(e.target.value))
-                    }
-                    style={{
-                      ...styles.select,
-                      ...((materiales[p.nombre] ?? 0) > 0
-                        ? styles.selectActive
-                        : {}),
-                    }}
-                  >
-                    {CANTIDAD_OPTIONS.map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+          <ProductSection
+            titulo="Material"
+            hint="Selecciona las unidades que quieres pedir (0 = no pedir)"
+            items={matList}
+            pedido={materiales}
+            onChange={handleMaterial}
+          />
+
+          {/* Ropa (solo granjero) */}
+          {rol === "granjero" && (
+            <div style={styles.card}>
+              <h2 style={styles.cardTitle}>Ropa</h2>
+              <p style={styles.cardHint}>Selecciona talla/número y unidades que quieres pedir</p>
+              <div style={styles.grid}>
+                {ROPA_GRANJERO.map((item) =>
+                  item.tallas ? (
+                    <RopaConTalla
+                      key={item.nombre}
+                      nombre={item.nombre}
+                      tallas={item.tallas}
+                      pedido={ropa}
+                      onChange={handleRopa}
+                    />
+                  ) : (
+                    <div key={item.nombre} style={styles.productRow}>
+                      <div style={styles.productInfo}>
+                        <span style={styles.productLabel}>{item.nombre}</span>
+                      </div>
+                      <select
+                        value={ropa[item.nombre] ?? 0}
+                        onChange={(e) => handleRopa(item.nombre, Number(e.target.value))}
+                        style={{
+                          ...styles.select,
+                          ...((ropa[item.nombre] ?? 0) > 0 ? styles.selectActive : {}),
+                        }}
+                      >
+                        {CANTIDAD_OPTIONS.map((n) => (
+                          <option key={n} value={n}>{n}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Notas */}
           <div style={styles.card}>
@@ -489,11 +520,124 @@ export default function PedidosPage() {
             >
               {status === "loading" ? "Enviando…" : "Enviar Pedido"}
             </button>
-            <p style={styles.submitHint}>
-              Se enviará el pedido por email a farmacia
-            </p>
+            <p style={styles.submitHint}>Se enviará el pedido por email a farmacia</p>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── PRODUCT SECTION COMPONENT ─────────────────────────────────────────
+function ProductSection({
+  titulo,
+  hint,
+  items,
+  pedido,
+  onChange,
+}: {
+  titulo: string;
+  hint: string;
+  items: Producto[];
+  pedido: Pedido;
+  onChange: (nombre: string, cantidad: number) => void;
+}) {
+  return (
+    <div style={styles.card}>
+      <h2 style={styles.cardTitle}>{titulo}</h2>
+      <p style={styles.cardHint}>{hint}</p>
+      <div style={styles.grid}>
+        {items.map((p) => (
+          <div key={p.nombre} style={styles.productRow}>
+            <div style={styles.productInfo}>
+              <span style={styles.productLabel}>{p.nombre}</span>
+            </div>
+            <select
+              value={pedido[p.nombre] ?? 0}
+              onChange={(e) => onChange(p.nombre, Number(e.target.value))}
+              style={{
+                ...styles.select,
+                ...((pedido[p.nombre] ?? 0) > 0 ? styles.selectActive : {}),
+              }}
+            >
+              {CANTIDAD_OPTIONS.map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── ROPA CON TALLA COMPONENT ──────────────────────────────────────────
+function RopaConTalla({
+  nombre,
+  tallas,
+  pedido,
+  onChange,
+}: {
+  nombre: string;
+  tallas: string[];
+  pedido: Pedido;
+  onChange: (key: string, cantidad: number) => void;
+}) {
+  const [tallaSeleccionada, setTallaSeleccionada] = useState("");
+  const key = tallaSeleccionada ? `${nombre} ${tallaSeleccionada}` : "";
+  const cantidad = key ? (pedido[key] ?? 0) : 0;
+
+  const tieneAlguno = tallas.some((t) => (pedido[`${nombre} ${t}`] ?? 0) > 0);
+  const resumen = tallas
+    .filter((t) => (pedido[`${nombre} ${t}`] ?? 0) > 0)
+    .map((t) => `${t}:${pedido[`${nombre} ${t}`]}`)
+    .join(", ");
+
+  return (
+    <div
+      style={{
+        ...styles.productRow,
+        flexDirection: "column",
+        alignItems: "stretch",
+        gap: 8,
+        ...(tieneAlguno ? { borderColor: "#2563eb", backgroundColor: "#eff6ff" } : {}),
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ ...styles.productLabel, fontWeight: tieneAlguno ? 600 : 400 }}>{nombre}</span>
+        {tieneAlguno && (
+          <span style={{ fontSize: 11, color: "#1d4ed8", fontWeight: 600 }}>{resumen}</span>
+        )}
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <select
+          value={tallaSeleccionada}
+          onChange={(e) => setTallaSeleccionada(e.target.value)}
+          style={{ ...styles.select, flex: 1, textAlign: "left" }}
+        >
+          <option value="">— Talla —</option>
+          {tallas.map((t) => (
+            <option key={t} value={t}>
+              {t} {(pedido[`${nombre} ${t}`] ?? 0) > 0 ? `(${pedido[`${nombre} ${t}`]})` : ""}
+            </option>
+          ))}
+        </select>
+        <select
+          value={cantidad}
+          onChange={(e) => {
+            if (key) onChange(key, Number(e.target.value));
+          }}
+          disabled={!tallaSeleccionada}
+          style={{
+            ...styles.select,
+            ...(cantidad > 0 ? styles.selectActive : {}),
+            ...(tallaSeleccionada ? {} : { opacity: 0.5 }),
+          }}
+        >
+          {CANTIDAD_OPTIONS.map((n) => (
+            <option key={n} value={n}>{n}</option>
+          ))}
+        </select>
       </div>
     </div>
   );
@@ -525,9 +669,7 @@ function SummaryTable({
             return (
               <tr key={p.nombre}>
                 <td style={styles.td}>{p.nombre}</td>
-                <td style={{ ...styles.td, textAlign: "center", fontWeight: 600 }}>
-                  {uds}
-                </td>
+                <td style={{ ...styles.td, textAlign: "center", fontWeight: 600 }}>{uds}</td>
               </tr>
             );
           })}
@@ -539,328 +681,49 @@ function SummaryTable({
 
 // ─── STYLES ────────────────────────────────────────────────────────────
 const styles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: "100vh",
-    backgroundColor: "#f5f7fa",
-    padding: "24px 16px",
-  },
-  container: {
-    maxWidth: 860,
-    margin: "0 auto",
-  },
-  header: {
-    textAlign: "center",
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 700,
-    color: "#1a1a2e",
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: "#666",
-  },
-  backBtn: {
-    marginTop: 12,
-    display: "inline-block",
-    backgroundColor: "transparent",
-    color: "#2563eb",
-    border: "none",
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: "pointer",
-    padding: "4px 8px",
-  },
-  // Role selection
-  roleGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-    gap: 24,
-    maxWidth: 600,
-    margin: "0 auto",
-  },
-  roleCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: "40px 28px",
-    border: "2px solid #e2e8f0",
-    cursor: "pointer",
-    textAlign: "center",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-    transition: "all 0.2s",
-  },
-  roleIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  roleTitle: {
-    fontSize: 20,
-    fontWeight: 700,
-    color: "#1a1a2e",
-    marginBottom: 8,
-  },
-  roleDesc: {
-    fontSize: 14,
-    color: "#666",
-    lineHeight: 1.4,
-  },
-  // Cards
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: "24px 28px",
-    marginBottom: 20,
-    boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 600,
-    color: "#1a1a2e",
-    marginBottom: 6,
-    borderBottom: "2px solid #e8ecf0",
-    paddingBottom: 10,
-  },
-  cardHint: {
-    fontSize: 13,
-    color: "#888",
-    marginBottom: 16,
-  },
-  field: {
-    flex: 1,
-    minWidth: 220,
-  },
-  label: {
-    display: "block",
-    fontSize: 13,
-    fontWeight: 600,
-    color: "#444",
-    marginBottom: 6,
-  },
-  input: {
-    width: "100%",
-    padding: "10px 12px",
-    fontSize: 15,
-    border: "1px solid #d1d5db",
-    borderRadius: 6,
-    outline: "none",
-    backgroundColor: "#fafafa",
-  },
-  textarea: {
-    width: "100%",
-    padding: "10px 12px",
-    fontSize: 14,
-    border: "1px solid #d1d5db",
-    borderRadius: 6,
-    outline: "none",
-    backgroundColor: "#fafafa",
-    resize: "vertical" as const,
-    fontFamily: "inherit",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
-    gap: 10,
-  },
-  productRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    padding: "8px 12px",
-    backgroundColor: "#f9fafb",
-    borderRadius: 6,
-    border: "1px solid #e8ecf0",
-  },
-  productInfo: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    gap: 2,
-  },
-  productLabel: {
-    fontSize: 13,
-    color: "#333",
-    lineHeight: 1.3,
-  },
-  productPrice: {
-    fontSize: 11,
-    color: "#999",
-  },
-  select: {
-    padding: "6px 8px",
-    fontSize: 14,
-    border: "1px solid #d1d5db",
-    borderRadius: 5,
-    backgroundColor: "#fff",
-    cursor: "pointer",
-    minWidth: 64,
-    textAlign: "center",
-  },
-  selectActive: {
-    borderColor: "#2563eb",
-    backgroundColor: "#eff6ff",
-    color: "#1d4ed8",
-    fontWeight: 600,
-  },
-  submitRow: {
-    textAlign: "center",
-    marginTop: 8,
-    marginBottom: 40,
-  },
-  submitBtn: {
-    backgroundColor: "#2563eb",
-    color: "#fff",
-    border: "none",
-    borderRadius: 8,
-    padding: "14px 40px",
-    fontSize: 16,
-    fontWeight: 600,
-    cursor: "pointer",
-    letterSpacing: 0.3,
-  },
-  submitBtnLoading: {
-    backgroundColor: "#93c5fd",
-    cursor: "not-allowed",
-  },
-  submitHint: {
-    marginTop: 10,
-    fontSize: 12,
-    color: "#9ca3af",
-  },
-  // Success screen
-  successCard: {
-    maxWidth: 780,
-    margin: "0 auto",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: "40px 36px",
-    boxShadow: "0 2px 12px rgba(0,0,0,0.1)",
-  },
-  successIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: "50%",
-    backgroundColor: "#22c55e",
-    color: "#fff",
-    fontSize: 28,
-    lineHeight: "56px",
-    textAlign: "center",
-    margin: "0 auto 16px",
-  },
-  successTitle: {
-    textAlign: "center",
-    fontSize: 24,
-    fontWeight: 700,
-    color: "#1a1a2e",
-    marginBottom: 4,
-  },
-  successSubtitle: {
-    textAlign: "center",
-    fontSize: 15,
-    color: "#555",
-    marginBottom: 16,
-  },
-  successDate: {
-    textAlign: "center",
-    fontSize: 13,
-    color: "#888",
-    marginBottom: 16,
-  },
-  emailOk: {
-    backgroundColor: "#f0fdf4",
-    border: "1px solid #bbf7d0",
-    color: "#15803d",
-    borderRadius: 8,
-    padding: "10px 16px",
-    fontSize: 13,
-    marginBottom: 24,
-    textAlign: "center",
-  },
-  emailError: {
-    backgroundColor: "#fef2f2",
-    border: "1px solid #fecaca",
-    color: "#b91c1c",
-    borderRadius: 8,
-    padding: "10px 16px",
-    fontSize: 13,
-    marginBottom: 24,
-    textAlign: "center",
-  },
-  notasBox: {
-    backgroundColor: "#fffbeb",
-    border: "1px solid #fde68a",
-    borderRadius: 8,
-    padding: "10px 16px",
-    fontSize: 13,
-    marginBottom: 24,
-    color: "#92400e",
-  },
-  summarySection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 600,
-    color: "#1a1a2e",
-    marginBottom: 10,
-    borderBottom: "1px solid #e8ecf0",
-    paddingBottom: 6,
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    fontSize: 13,
-  },
-  th: {
-    textAlign: "left",
-    padding: "8px 12px",
-    backgroundColor: "#f1f5f9",
-    color: "#374151",
-    fontWeight: 600,
-    borderBottom: "1px solid #e2e8f0",
-    fontSize: 12,
-  },
-  td: {
-    padding: "7px 12px",
-    borderBottom: "1px solid #f1f5f9",
-    color: "#333",
-  },
-  buttonRow: {
-    display: "flex",
-    gap: 12,
-    justifyContent: "center",
-    flexWrap: "wrap",
-  },
-  excelBtn: {
-    backgroundColor: "#16a34a",
-    color: "#fff",
-    border: "none",
-    borderRadius: 8,
-    padding: "12px 28px",
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: "pointer",
-  },
-  printBtn: {
-    backgroundColor: "#1a1a2e",
-    color: "#fff",
-    border: "none",
-    borderRadius: 8,
-    padding: "12px 28px",
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: "pointer",
-  },
-  resetBtn: {
-    backgroundColor: "#fff",
-    color: "#2563eb",
-    border: "2px solid #2563eb",
-    borderRadius: 8,
-    padding: "12px 28px",
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: "pointer",
-  },
+  page: { minHeight: "100vh", backgroundColor: "#f5f7fa", padding: "24px 16px" },
+  container: { maxWidth: 860, margin: "0 auto" },
+  header: { textAlign: "center", marginBottom: 32 },
+  title: { fontSize: 28, fontWeight: 700, color: "#1a1a2e", marginBottom: 6 },
+  subtitle: { fontSize: 15, color: "#666" },
+  backBtn: { marginTop: 12, display: "inline-block", backgroundColor: "transparent", color: "#2563eb", border: "none", fontSize: 14, fontWeight: 600, cursor: "pointer", padding: "4px 8px" },
+  roleGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 24, maxWidth: 600, margin: "0 auto" },
+  roleCard: { backgroundColor: "#fff", borderRadius: 12, padding: "40px 28px", border: "2px solid #e2e8f0", cursor: "pointer", textAlign: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", transition: "all 0.2s" },
+  roleIcon: { fontSize: 48, marginBottom: 16 },
+  roleTitle: { fontSize: 20, fontWeight: 700, color: "#1a1a2e", marginBottom: 8 },
+  roleDesc: { fontSize: 14, color: "#666", lineHeight: 1.4 },
+  card: { backgroundColor: "#fff", borderRadius: 10, padding: "24px 28px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" },
+  cardTitle: { fontSize: 18, fontWeight: 600, color: "#1a1a2e", marginBottom: 6, borderBottom: "2px solid #e8ecf0", paddingBottom: 10 },
+  cardHint: { fontSize: 13, color: "#888", marginBottom: 16 },
+  field: { flex: 1, minWidth: 220 },
+  label: { display: "block", fontSize: 13, fontWeight: 600, color: "#444", marginBottom: 6 },
+  input: { width: "100%", padding: "10px 12px", fontSize: 15, border: "1px solid #d1d5db", borderRadius: 6, outline: "none", backgroundColor: "#fafafa" },
+  textarea: { width: "100%", padding: "10px 12px", fontSize: 14, border: "1px solid #d1d5db", borderRadius: 6, outline: "none", backgroundColor: "#fafafa", resize: "vertical" as const, fontFamily: "inherit" },
+  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 10 },
+  productRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 12px", backgroundColor: "#f9fafb", borderRadius: 6, border: "1px solid #e8ecf0" },
+  productInfo: { flex: 1, display: "flex", flexDirection: "column", gap: 2 },
+  productLabel: { fontSize: 13, color: "#333", lineHeight: 1.3 },
+  select: { padding: "6px 8px", fontSize: 14, border: "1px solid #d1d5db", borderRadius: 5, backgroundColor: "#fff", cursor: "pointer", minWidth: 64, textAlign: "center" },
+  selectActive: { borderColor: "#2563eb", backgroundColor: "#eff6ff", color: "#1d4ed8", fontWeight: 600 },
+  submitRow: { textAlign: "center", marginTop: 8, marginBottom: 40 },
+  submitBtn: { backgroundColor: "#2563eb", color: "#fff", border: "none", borderRadius: 8, padding: "14px 40px", fontSize: 16, fontWeight: 600, cursor: "pointer", letterSpacing: 0.3 },
+  submitBtnLoading: { backgroundColor: "#93c5fd", cursor: "not-allowed" },
+  submitHint: { marginTop: 10, fontSize: 12, color: "#9ca3af" },
+  successCard: { maxWidth: 780, margin: "0 auto", backgroundColor: "#fff", borderRadius: 12, padding: "40px 36px", boxShadow: "0 2px 12px rgba(0,0,0,0.1)" },
+  successIcon: { width: 56, height: 56, borderRadius: "50%", backgroundColor: "#22c55e", color: "#fff", fontSize: 28, lineHeight: "56px", textAlign: "center", margin: "0 auto 16px" },
+  successTitle: { textAlign: "center", fontSize: 24, fontWeight: 700, color: "#1a1a2e", marginBottom: 4 },
+  successSubtitle: { textAlign: "center", fontSize: 15, color: "#555", marginBottom: 16 },
+  successDate: { textAlign: "center", fontSize: 13, color: "#888", marginBottom: 16 },
+  emailOk: { backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0", color: "#15803d", borderRadius: 8, padding: "10px 16px", fontSize: 13, marginBottom: 24, textAlign: "center" },
+  emailError: { backgroundColor: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", borderRadius: 8, padding: "10px 16px", fontSize: 13, marginBottom: 24, textAlign: "center" },
+  notasBox: { backgroundColor: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 16px", fontSize: 13, marginBottom: 24, color: "#92400e" },
+  summarySection: { marginBottom: 24 },
+  sectionTitle: { fontSize: 16, fontWeight: 600, color: "#1a1a2e", marginBottom: 10, borderBottom: "1px solid #e8ecf0", paddingBottom: 6 },
+  table: { width: "100%", borderCollapse: "collapse", fontSize: 13 },
+  th: { textAlign: "left", padding: "8px 12px", backgroundColor: "#f1f5f9", color: "#374151", fontWeight: 600, borderBottom: "1px solid #e2e8f0", fontSize: 12 },
+  td: { padding: "7px 12px", borderBottom: "1px solid #f1f5f9", color: "#333" },
+  buttonRow: { display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" },
+  excelBtn: { backgroundColor: "#16a34a", color: "#fff", border: "none", borderRadius: 8, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer" },
+  printBtn: { backgroundColor: "#1a1a2e", color: "#fff", border: "none", borderRadius: 8, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer" },
+  resetBtn: { backgroundColor: "#fff", color: "#2563eb", border: "2px solid #2563eb", borderRadius: 8, padding: "12px 28px", fontSize: 14, fontWeight: 600, cursor: "pointer" },
 };

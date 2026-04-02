@@ -14,6 +14,7 @@ interface EmailPayload {
   origen: string;
   medicamentos: LineaPedido[];
   materiales: LineaPedido[];
+  ropa?: LineaPedido[];
   notas?: string;
 }
 
@@ -58,6 +59,7 @@ function buildEmailHtml(payload: EmailPayload): string {
   const fecha = formatFechaServer();
   const medTable = tableHtml("Medicamentos", payload.medicamentos);
   const matTable = tableHtml("Material", payload.materiales);
+  const ropaTable = tableHtml("Ropa", payload.ropa ?? []);
 
   const notasHtml = payload.notas
     ? `<div style="margin:16px 32px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:13px;color:#92400e;">
@@ -96,6 +98,7 @@ function buildEmailHtml(payload: EmailPayload): string {
     <div style="padding:8px 32px 24px;">
       ${medTable}
       ${matTable}
+      ${ropaTable}
     </div>
 
     ${notasHtml}
