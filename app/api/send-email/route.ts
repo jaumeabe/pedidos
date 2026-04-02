@@ -56,8 +56,19 @@ function tableHtml(titulo: string, items: LineaPedido[]): string {
     </table>`;
 }
 
+function formatFechaServer(): string {
+  const now = new Date();
+  const dia = String(now.getDate()).padStart(2, "0");
+  const mes = String(now.getMonth() + 1).padStart(2, "0");
+  const anyo = now.getFullYear();
+  const horas = String(now.getHours()).padStart(2, "0");
+  const minutos = String(now.getMinutes()).padStart(2, "0");
+  return `${dia}/${mes}/${anyo} ${horas}:${minutos}`;
+}
+
 function buildEmailHtml(payload: EmailPayload): string {
   const rolLabel = payload.rol === "granjero" ? "Granja" : "Visitador";
+  const fecha = formatFechaServer();
   const medTable = tableHtml("Medicamentos", payload.medicamentos);
   const matTable = tableHtml("Material", payload.materiales);
 
@@ -89,11 +100,11 @@ function buildEmailHtml(payload: EmailPayload): string {
       <table width="100%" cellpadding="0" cellspacing="0">
         <tr>
           <td style="font-size:13px;color:#6b7280;">${rolLabel.toUpperCase()}</td>
-          <td style="font-size:13px;color:#6b7280;text-align:right;">TIPO</td>
+          <td style="font-size:13px;color:#6b7280;text-align:right;">FECHA</td>
         </tr>
         <tr>
           <td style="font-size:18px;font-weight:700;color:#1a1a2e;">${payload.origen}</td>
-          <td style="font-size:18px;font-weight:700;color:#1a1a2e;text-align:right;">${rolLabel}</td>
+          <td style="font-size:18px;font-weight:700;color:#1a1a2e;text-align:right;">${fecha}</td>
         </tr>
       </table>
     </div>

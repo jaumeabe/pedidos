@@ -24,6 +24,83 @@ function buildInitialPedido(items: Producto[]): Pedido {
   return Object.fromEntries(items.map((p) => [p.nombre, 0]));
 }
 
+function formatFecha(): string {
+  const now = new Date();
+  const dia = String(now.getDate()).padStart(2, "0");
+  const mes = String(now.getMonth() + 1).padStart(2, "0");
+  const anyo = now.getFullYear();
+  const horas = String(now.getHours()).padStart(2, "0");
+  const minutos = String(now.getMinutes()).padStart(2, "0");
+  return `${dia}/${mes}/${anyo} ${horas}:${minutos}`;
+}
+
+function downloadExcel(
+  rolLabel: string,
+  origen: string,
+  fecha: string,
+  medItems: { nombre: string; uds: number; precio: number }[],
+  matItems: { nombre: string; uds: number; precio: number }[],
+  notas: string
+) {
+  let rows = "";
+
+  rows += `<Row><Cell ss:StyleID="header"><Data ss:Type="String">Pedido de Farmacia</Data></Cell></Row>`;
+  rows += `<Row><Cell><Data ss:Type="String">${rolLabel}</Data></Cell><Cell><Data ss:Type="String">${origen}</Data></Cell></Row>`;
+  rows += `<Row><Cell><Data ss:Type="String">Fecha</Data></Cell><Cell><Data ss:Type="String">${fecha}</Data></Cell></Row>`;
+  rows += `<Row></Row>`;
+
+  if (medItems.length > 0) {
+    rows += `<Row><Cell ss:StyleID="header"><Data ss:Type="String">MEDICAMENTOS</Data></Cell></Row>`;
+    rows += `<Row><Cell ss:StyleID="colhead"><Data ss:Type="String">Producto</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Uds.</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Precio/ud.</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Total</Data></Cell></Row>`;
+    for (const item of medItems) {
+      rows += `<Row><Cell><Data ss:Type="String">${item.nombre}</Data></Cell><Cell><Data ss:Type="Number">${item.uds}</Data></Cell><Cell><Data ss:Type="Number">${item.precio}</Data></Cell><Cell><Data ss:Type="Number">${(item.precio * item.uds).toFixed(2)}</Data></Cell></Row>`;
+    }
+    rows += `<Row></Row>`;
+  }
+
+  if (matItems.length > 0) {
+    rows += `<Row><Cell ss:StyleID="header"><Data ss:Type="String">MATERIAL</Data></Cell></Row>`;
+    rows += `<Row><Cell ss:StyleID="colhead"><Data ss:Type="String">Producto</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Uds.</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Precio/ud.</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Total</Data></Cell></Row>`;
+    for (const item of matItems) {
+      rows += `<Row><Cell><Data ss:Type="String">${item.nombre}</Data></Cell><Cell><Data ss:Type="Number">${item.uds}</Data></Cell><Cell><Data ss:Type="Number">${item.precio}</Data></Cell><Cell><Data ss:Type="Number">${(item.precio * item.uds).toFixed(2)}</Data></Cell></Row>`;
+    }
+    rows += `<Row></Row>`;
+  }
+
+  if (notas) {
+    rows += `<Row><Cell ss:StyleID="header"><Data ss:Type="String">Notas</Data></Cell></Row>`;
+    rows += `<Row><Cell><Data ss:Type="String">${notas}</Data></Cell></Row>`;
+  }
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Styles>
+  <Style ss:ID="Default"><Font ss:FontName="Arial" ss:Size="11"/></Style>
+  <Style ss:ID="header"><Font ss:FontName="Arial" ss:Size="12" ss:Bold="1"/></Style>
+  <Style ss:ID="colhead"><Font ss:FontName="Arial" ss:Size="11" ss:Bold="1"/><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/></Style>
+</Styles>
+<Worksheet ss:Name="Pedido">
+  <Table ss:DefaultColumnWidth="120">
+    <Column ss:Width="280"/>
+    <Column ss:Width="80"/>
+    <Column ss:Width="100"/>
+    <Column ss:Width="100"/>
+    ${rows}
+  </Table>
+</Worksheet>
+</Workbook>`;
+
+  const blob = new Blob([xml], { type: "application/vnd.ms-excel" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Pedido_${origen.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.xls`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function PedidosPage() {
   const [rol, setRol] = useState<Rol>("");
 
@@ -35,6 +112,7 @@ export default function PedidosPage() {
 
   // Shared state
   const [notas, setNotas] = useState("");
+  const [fechaEnvio, setFechaEnvio] = useState("");
   const [medicamentos, setMedicamentos] = useState<Pedido>({});
   const [materiales, setMateriales] = useState<Pedido>({});
   const [status, setStatus] = useState<SubmitStatus>("idle");
@@ -79,6 +157,7 @@ export default function PedidosPage() {
 
     setStatus("loading");
     setEmailError("");
+    setFechaEnvio(formatFecha());
 
     const medicamentosConPedido = medList
       .filter((p) => medicamentos[p.nombre] > 0)
@@ -124,10 +203,27 @@ export default function PedidosPage() {
     setGranja("");
     setVisitador("");
     setNotas("");
+    setFechaEnvio("");
     setMedicamentos({});
     setMateriales({});
     setStatus("idle");
     setEmailError("");
+  }
+
+  function handleExcel() {
+    const origen = rol === "granjero" ? granja : visitador;
+    const rolLabel = rol === "granjero" ? "Granja" : "Visitador";
+    const medItems = medicamentosConPedido.map((p) => ({
+      nombre: p.nombre,
+      uds: medicamentos[p.nombre],
+      precio: p.precio,
+    }));
+    const matItems = materialesConPedido.map((p) => ({
+      nombre: p.nombre,
+      uds: materiales[p.nombre],
+      precio: p.precio,
+    }));
+    downloadExcel(rolLabel, origen, fechaEnvio, medItems, matItems, notas);
   }
 
   const medicamentosConPedido = medList.filter((p) => medicamentos[p.nombre] > 0);
@@ -144,6 +240,9 @@ export default function PedidosPage() {
           <h1 style={styles.successTitle}>Pedido Enviado</h1>
           <p style={styles.successSubtitle}>
             <strong>{rolLabel}:</strong> {origen}
+          </p>
+          <p style={styles.successDate}>
+            Fecha: {fechaEnvio}
           </p>
 
           {emailError ? (
@@ -179,6 +278,9 @@ export default function PedidosPage() {
           )}
 
           <div style={styles.buttonRow}>
+            <button onClick={handleExcel} style={styles.excelBtn}>
+              Descargar Excel
+            </button>
             <button onClick={() => window.print()} style={styles.printBtn}>
               Imprimir / Guardar PDF
             </button>
@@ -685,6 +787,12 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#555",
     marginBottom: 16,
   },
+  successDate: {
+    textAlign: "center",
+    fontSize: 13,
+    color: "#888",
+    marginBottom: 16,
+  },
   emailOk: {
     backgroundColor: "#f0fdf4",
     border: "1px solid #bbf7d0",
@@ -749,6 +857,16 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 12,
     justifyContent: "center",
     flexWrap: "wrap",
+  },
+  excelBtn: {
+    backgroundColor: "#16a34a",
+    color: "#fff",
+    border: "none",
+    borderRadius: 8,
+    padding: "12px 28px",
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
   },
   printBtn: {
     backgroundColor: "#1a1a2e",
