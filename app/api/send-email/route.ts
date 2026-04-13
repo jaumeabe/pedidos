@@ -54,6 +54,55 @@ function formatFechaServer(): string {
   return `${dia}/${mes}/${anyo} ${horas}:${minutos}`;
 }
 
+function buildExcelXml(payload: EmailPayload, fecha: string): string {
+  const rolLabel = payload.rol === "granjero" ? "Granja" : "Visitador";
+  let rows = "";
+
+  rows += `<Row><Cell ss:StyleID="header"><Data ss:Type="String">Pedido de Farmacia</Data></Cell></Row>`;
+  rows += `<Row><Cell><Data ss:Type="String">${rolLabel}</Data></Cell><Cell><Data ss:Type="String">${payload.origen}</Data></Cell></Row>`;
+  rows += `<Row><Cell><Data ss:Type="String">Fecha</Data></Cell><Cell><Data ss:Type="String">${fecha}</Data></Cell></Row>`;
+  rows += `<Row></Row>`;
+
+  const sections: { title: string; items: LineaPedido[] }[] = [
+    { title: "MEDICAMENTOS", items: payload.medicamentos },
+    { title: "MATERIAL", items: payload.materiales },
+    { title: "ROPA", items: payload.ropa ?? [] },
+  ];
+
+  for (const section of sections) {
+    if (section.items.length === 0) continue;
+    rows += `<Row><Cell ss:StyleID="header"><Data ss:Type="String">${section.title}</Data></Cell></Row>`;
+    rows += `<Row><Cell ss:StyleID="colhead"><Data ss:Type="String">Producto</Data></Cell><Cell ss:StyleID="colhead"><Data ss:Type="String">Uds.</Data></Cell></Row>`;
+    for (const item of section.items) {
+      rows += `<Row><Cell><Data ss:Type="String">${item.nombre}</Data></Cell><Cell><Data ss:Type="Number">${item.unidades}</Data></Cell></Row>`;
+    }
+    rows += `<Row></Row>`;
+  }
+
+  if (payload.notas) {
+    rows += `<Row><Cell ss:StyleID="header"><Data ss:Type="String">Notas</Data></Cell></Row>`;
+    rows += `<Row><Cell><Data ss:Type="String">${payload.notas}</Data></Cell></Row>`;
+  }
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Styles>
+  <Style ss:ID="Default"><Font ss:FontName="Arial" ss:Size="11"/></Style>
+  <Style ss:ID="header"><Font ss:FontName="Arial" ss:Size="12" ss:Bold="1"/></Style>
+  <Style ss:ID="colhead"><Font ss:FontName="Arial" ss:Size="11" ss:Bold="1"/><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/></Style>
+</Styles>
+<Worksheet ss:Name="Pedido">
+  <Table ss:DefaultColumnWidth="120">
+    <Column ss:Width="280"/>
+    <Column ss:Width="80"/>
+    ${rows}
+  </Table>
+</Worksheet>
+</Workbook>`;
+}
+
 function buildEmailHtml(payload: EmailPayload): string {
   const rolLabel = payload.rol === "granjero" ? "Granja" : "Visitador";
   const fecha = formatFechaServer();
@@ -119,6 +168,10 @@ export async function POST(req: NextRequest) {
     const payload: EmailPayload = await req.json();
 
     const html = buildEmailHtml(payload);
+    const fecha = formatFechaServer();
+    const excelXml = buildExcelXml(payload, fecha);
+    const excelBase64 = Buffer.from(excelXml, "utf-8").toString("base64");
+    const fileName = `Pedido_${payload.origen.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.xls`;
 
     const recipient = process.env.RECIPIENT_EMAIL;
     if (!recipient) {
@@ -156,6 +209,12 @@ export async function POST(req: NextRequest) {
       to: recipients,
       subject,
       html,
+      attachments: [
+        {
+          filename: fileName,
+          content: excelBase64,
+        },
+      ],
     });
 
     if (error) {
